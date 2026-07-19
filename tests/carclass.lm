@@ -1,0 +1,12 @@
+struct Car {
+    speed: f
+    model: s
+}
+
+c = Car(100, "Lamborghini Aventador")
+
+Car:ride () {
+    print(self.model, " is riding with speed ", self.speed)
+}
+
+c:ride()

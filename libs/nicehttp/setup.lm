@@ -1,0 +1,133 @@
+usec "libcurl.dll" {"
+    typedef size_t (*curl_write_callback)(char *ptr, size_t size, size_t nmemb, void *userdata);
+    void* curl_easy_init();
+    void curl_easy_cleanup(void* curl);
+    int curl_easy_setopt(void* curl, int option, ...);
+    int curl_easy_perform(void* curl);
+    int curl_easy_getinfo(void* curl, int info, ...);
+    const char* curl_version();
+    const char* curl_easy_strerror(int code);
+    void* curl_slist_append(void* list, const char* str);
+    void curl_slist_free_all(void* list);
+"} as "curl"
+
+var CURLOPT_URL = 10002
+var CURLOPT_WRITEFUNCTION = 20011
+var CURLOPT_WRITEDATA = 10001
+var CURLOPT_FOLLOWLOCATION = 52
+var CURLOPT_TIMEOUT = 13
+var CURLOPT_POST = 47
+var CURLOPT_POSTFIELDS = 10015
+var CURLOPT_POSTFIELDSIZE = 60
+var CURLOPT_CUSTOMREQUEST = 10036
+var CURLOPT_HTTPHEADER = 10023
+var CURLOPT_VERBOSE = 41
+
+var CURLINFO_RESPONSE_CODE = 2097154
+
+var _response = ""
+var _headers = {}
+
+fn clong(n) {
+    ret ffi.cast("long", n)
+}
+
+fn cnull() {
+    ret ffi.cast("void*", 0)
+}
+
+fn _write_callback(data, size, nmemb, userdata) {
+    var len = size * nmemb
+    var chunk = ffi.string(data, len)
+    _response = _response .. chunk
+    ret len
+}
+
+var _write_callback_ptr = ffi.cast("curl_write_callback", _write_callback)
+
+fn _request(method, url, data, headers) {
+    var handle = curl.curl_easy_init()
+    if handle == nil {
+        ret {"error": "curl_easy_init failed"}
+    }
+
+    curl.curl_easy_setopt(handle, CURLOPT_URL, url)
+
+    if method == "POST" {
+        curl.curl_easy_setopt(handle, CURLOPT_POST, clong(1))
+        if data != "" {
+            curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDS, data)
+            curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, clong(#data))
+        }
+    } elif method == "PUT" | method == "DELETE" | method == "PATCH" {
+        curl.curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, method)
+        if data != "" {
+            curl.curl_easy_setopt(handle, CURLOPT_POSTFIELDS, data)
+        }
+    }
+
+    var header_list = nil
+    if headers != {} {
+        for k, v in headers {
+            var h = k .. ": " .. v
+            header_list = curl.curl_slist_append(header_list, h)
+        }
+        if header_list != nil {
+            curl.curl_easy_setopt(handle, CURLOPT_HTTPHEADER, header_list)
+        }
+    }
+
+    curl.curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, _write_callback_ptr)
+    curl.curl_easy_setopt(handle, CURLOPT_WRITEDATA, cnull())
+    curl.curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, clong(1))
+    curl.curl_easy_setopt(handle, CURLOPT_TIMEOUT, clong(30))
+
+    _response = ""
+    var res = curl.curl_easy_perform(handle)
+
+    var status_box = ffi.new("long[1]")
+    curl.curl_easy_getinfo(handle, CURLINFO_RESPONSE_CODE, status_box)
+    var status = status_box[0]
+
+    if header_list != nil {
+        curl.curl_slist_free_all(header_list)
+    }
+
+    curl.curl_easy_cleanup(handle)
+
+    if res == 0 {
+        ret {"status": status, "body": _response}
+    } else {
+        var err = ffi.string(curl.curl_easy_strerror(res))
+        ret {"error": err, "status": status, "body": _response}
+    }
+}
+
+fn get(url, headers) {
+    if headers == nil { headers = {} }
+    ret _request("GET", url, "", headers)
+}
+
+fn post(url, data, headers) {
+    if headers == nil { headers = {} }
+    ret _request("POST", url, data, headers)
+}
+
+fn put(url, data, headers) {
+    if headers == nil { headers = {} }
+    ret _request("PUT", url, data, headers)
+}
+
+fn delete(url, headers) {
+    if headers == nil { headers = {} }
+    ret _request("DELETE", url, "", headers)
+}
+
+fn patch(url, data, headers) {
+    if headers == nil { headers = {} }
+    ret _request("PATCH", url, data, headers)
+}
+
+fn version() {
+    ret ffi.string(curl.curl_version())
+}

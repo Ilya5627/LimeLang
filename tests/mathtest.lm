@@ -1,0 +1,6 @@
+use "math"
+print("pow(2, 10):", pow(2, 10))
+print("abs(-5):", abs(-5))
+print("pi():", pi())
+print("sin(pi/2):", sin(pi() / 2))
+print("random():", random())

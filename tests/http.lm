@@ -1,0 +1,10 @@
+use "nicehttp"
+var post_data = "name=LIME&age=123&city=Somewhere"
+var post_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+res = post("https://httpbin.org/post", post_data, post_headers)
+print("Status:", res["status"])
+if res["status"] == 200 {
+    print("Body:", res["body"])
+} else {
+    print("Error:", res["error"])
+}

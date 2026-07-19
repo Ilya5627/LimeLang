@@ -1,0 +1,121 @@
+usec "kernel32.dll"{"
+int CreateDirectoryA(const char* lpPathName, void* lpSecurityAttributes);
+int RemoveDirectoryA(const char* lpPathName);
+int DeleteFileA(const char* lpFileName);
+void* CreateFileA(const char* path, int access, int share, void* sec, int creation, int flags, void* template);
+int WriteFile(void* handle, void* buf, int size, void* written, void* overlapped);
+int CloseHandle(void* handle);
+int GetLastError();
+int GetFileSize(void* handle, void* high);
+int ReadFile(void* handle, void* buf, int size, void* read, void* overlapped);"} as "os"
+
+var GENERIC_READ = 0x80000000
+var GENERIC_WRITE = 0x40000000
+
+var CREATE_NEW = 1
+var CREATE_ALWAYS = 2
+var OPEN_EXISTING = 3
+var OPEN_ALWAYS = 4
+var TRUNCATE_EXISTING = 5
+
+var FILE_SHARE_READ = 1
+var FILE_SHARE_WRITE = 2
+var FILE_SHARE_DELETE = 4
+
+var FILE_ATTRIBUTE_NORMAL = 0x80
+
+fn mkdir(path) {
+    if type(path) != "string" {
+        exit(1)
+    }
+
+    ret os.CreateDirectoryA(path, ffi.cast("void*", 0)) == 1
+}
+
+fn del(path) {
+    if type(path) != "string" {
+        error("Argument of function 'del' must be an string")
+    }
+
+    ret os.DeleteFileA(path) == 1
+}
+
+fn rmdir(path) {
+    if type(path) != "string" {
+        exit(1)
+    }
+
+    ret os.RemoveDirectoryA(path) == 1
+}
+
+fn write(path, content) {
+    if type(path) != "string" {
+        exit(1)
+    }
+
+    var handle = os.CreateFileA(
+        path,
+        GENERIC_WRITE,
+        0,
+        ffi.cast("void*", 0),
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        ffi.cast("void*", 0)
+    )
+
+    if handle == -1 {
+        var err = os.GetLastError()
+        print("Error with creating file. Code: ", err)
+        ret false
+    }
+
+    var written = ffi.new("int[1]", 0)
+    var ok = os.WriteFile(handle, ffi.cast("void*", content), #content, written, ffi.cast("void*", 0))
+
+    os.CloseHandle(handle)
+
+    ret ok == 1
+}
+
+fn read(path) {
+    if type(path) != "string" {
+        exit(1)
+    }
+
+    var handle = os.CreateFileA(
+        path,
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        ffi.cast("void*", 0),
+        OPEN_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        ffi.cast("void*", 0)
+    )
+
+    if handle == -1 {
+        var err = os.GetLastError()
+        print("Error with opening file. Code: ", err)
+        ret false
+    }
+
+    var size = os.GetFileSize(handle, ffi.cast("void*", 0))
+    if size == 0 {
+        os.CloseHandle(handle)
+        ret {"error": 0, "data": ""}
+    }
+
+    var buf = ffi.new("char[?]", size + 1)
+
+    var bytes_read = ffi.new("int[1]", 0)
+    var ok = os.ReadFile(handle, buf, size, bytes_read, ffi.cast("void*", 0))
+
+    os.CloseHandle(handle)
+
+    if ok == 0 {
+        var err = os.GetLastError()
+        ret {"error": err, "data": ""}
+    }
+
+    var data = ffi.string(buf)
+    ret {"error": 0, "data": data}
+}
