@@ -143,6 +143,7 @@ class Parser:
         return statements
 
     def parse_statement(self) -> Dict:
+        print(self.peek())
         """Парсит один statement"""
         if self.peek()[0] == 'KEY' and self.peek()[1] == 'var':
             return self.parse_var()
@@ -164,6 +165,8 @@ class Parser:
             return self.parse_struct()
         if self.peek()[0] == 'KEY' and self.peek()[1] == 'usec':
             return self.parse_usec()
+        if self.peek()[0] == 'KEY' and self.peek()[1] == 'match':
+            return self.parse_switch()
         if self.peek()[0] == 'ID' and self._is_assignment_ahead():
             return self.parse_change()
         if self.peek()[0] == 'ID' and self.peek(1)[1] == ":":
@@ -182,6 +185,19 @@ class Parser:
         self.next()
 
         return {"type": "block", "statements": statements}
+
+    def parse_switch(self):
+        self.next()
+        expr = self.parse_expression()
+        if self.next()[1] != ":":
+            raise SyntaxError("Need ':' token but given " + self.peek()[1])
+        cases = []
+        while self.peek()[1] == "case":
+            self.next()
+            e = self.parse_expression()
+            cases.append({"expr": e, "stmt": self.parse_statement()})
+        return {"type": "match", "expr": expr, "cases": cases}
+
 
     def parse_met(self):
         cls = self.match("ID")[1]
@@ -290,9 +306,10 @@ class Parser:
             return self.parse_for_in()
         start = self.parse_statement()
         self.match('OP')
-        expr = self.match("NUM")[1]
+        expr = self.parse_expression()
         self.match('OP')
-        step = self.match("NUM")[1]
+        step = self.parse_expression()
+        print(self.peek())
         stmt = self.parse_statement()
         return {'type': 'for', 'start': start, 'expr': expr, 'step': step, 'stmt': stmt}
 
@@ -573,7 +590,7 @@ class CodeGen:
     def genSt(self, v):
         if v["type"] == "var":
             self.genVar(v)
-        if v["type"] == "c_var":
+        elif v["type"] == "c_var":
             self.gencVar(v)
         elif v["type"] == "block":
             for i in v["statements"]:
@@ -600,9 +617,33 @@ class CodeGen:
             self.genMethod(v)
         elif v["type"] == "usec":
             self.genUseC(v)
+        elif v["type"] == "match":
+            self.genMatch(v)
         else:
             self.genExpr(v)
             self.gen += '\n'
+
+    def genMatch(self, v):
+        fst = True
+        for i in v["cases"]:
+            if fst:
+                fst = False
+                self.gen += "if "
+                self.genExpr(v['expr'])
+                self.gen += " == "
+                self.genExpr(i['expr'])
+                self.gen += " then\n"
+            elif i["expr"]["type"] == "variable" and i["expr"]["name"] == "_":
+                self.gen += "else\n"
+            else:
+                self.gen += "elif "
+                self.genExpr(v['expr'])
+                self.gen += " == "
+                self.genExpr(i['expr'])
+                self.gen += " then\n"
+            self.genSt(i["stmt"])
+
+        self.gen += "end\n"
 
     def genVar(self, v):
         self.gen += "local " + v["name"] + " = "
@@ -627,7 +668,10 @@ class CodeGen:
         if v["start"]['type'] != "c_var":
             raise SyntaxError("In \"for\" cycle must be var assignment(without \"var\")")
         self.genSt(v['start'])
-        self.gen += f", {v["expr"]}, {v["step"]} do\n"
+        self.gen += ", "
+        self.genExpr(v["expr"])
+        self.gen += ", "
+        self.genExpr(v["step"])
         self.genSt(v["stmt"])
         self.gen += "end\n"
 

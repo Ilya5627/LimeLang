@@ -49,5 +49,6 @@ lua.globals()["defpyt"] = def_python_lib
 lua.globals()["exit"] = exit
 lua.globals()["range"] = range
 lua.globals()["error"] = printlmerror
+lua.globals()["getattr"] = getattr
 lua_code = "local ffi = require('ffi')\n" + lua_code
 lua.execute(lua_code)
