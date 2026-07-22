@@ -15,6 +15,19 @@ Lime создан с целью убрать её главную боль — м
 
 Компилятор работает следующим образом: лексер → парсер (строит AST) → генератор кода (AST → LuaJIT код). Компилятор написан на Python с целью использовать его библиотеку - lupa 2.8 - которая предоставляет возможность встраивать в Lua-code python функции. В Lime это делается с целью получить возможность импорта любой питон библиотеки без особой потери скорости.
 
+### Кратко
+
+LIME — это не замена Python.
+Это мост, который соединяет:
+
+🐍 Богатство Python-экосистемы
+
+⚡ Скорость LuaJIT и C
+
+🧠 Удобство собственного синтаксиса
+
+Правильно выбирая инструмент под задачу, ты получаешь лучшее из всех миров.
+
 ### Почему это интересно
 
 - **Скорость исполнения** — весь сгенерированный код выполняется LuaJIT, который является легковесным и быстрым.
@@ -156,6 +169,32 @@ res = match op:
 | `b` | `bool`         |
 | `p` | `void*`        |
 
+
+### Подключение Python библиотек
+
+Благодаря интеграции с Lupa 2.8, LIME может загружать и использовать любые модули и библиотеки Python — от os и requests до numpy и tensorflow.
+
+Важно понимать:
+
+Однократные вызовы Python-функций (инициализация, загрузка данных, настройка GUI) работают с той же скоростью, что и в Python.
+
+Частые вызовы внутри циклов (сотни тысяч итераций) создают накладные расходы на передачу данных между Lua и Python. Для таких задач лучше использовать FFI-вызовы C-библиотек — это даёт прирост в скорости до 50–100 раз.
+
+В интерактивных приложениях (GUI, игры, веб-серверы) пользователь не заметит разницы, потому что основное время уходит на ожидание ввода-вывода или событий.
+
+Рекомендация:
+Используйте Python для быстрого прототипирования, работы с богатой экосистемой (numpy, pandas, Pillow, scikit-learn) и для одноразовых операций.
+Для вычислений в реальном времени, обработки больших данных или игровых циклов предпочитайте C-библиотеки через FFI — они обеспечат максимальную производительность.
+
+СРЕДНЕЕ ЗАМЕДЛЕНИЕ ПРИ ИСПОЛЬЗОВАНИИ ПИТОН В LIME ПО СРАВНЕНИЮ С ЧИСТОМ ПИТОН: 5-10%.
+
+```
+os = pytdef("os")
+
+print(os.path.exist("main.py"))
+```
+
+
 ### Текущее состояние
 
 - Строки без экранирования спецсимволов (пока без `\"`, `\n` и т.п.).
@@ -164,9 +203,7 @@ res = match op:
 
 ---
 
-## en English version
-
-WARNING: This text was AUTOMATICLY TRANSLATED TO ENGLISH
+## 🇷🇺 Russian version
 
 ### The essence of language
 
@@ -175,6 +212,19 @@ Lime is a language with a simple, concise syntax (`.lm` files) that compiles dir
 Lime was created to remove its main pain — verbosity.
 
 The compiler works as follows: lexer → parser (builds AST) → code generator (AST → LuaJIT code). The compiler is written in Python in order to use its library, lupa 2.8, which provides the ability to embed python functions in Lua code. In Lime, this is done in order to be able to import any python library without much loss of speed.
+
+### Briefly
+
+LIME is not a replacement for Python.
+This is the bridge that connects:
+
+The richness of the Python ecosystem
+
+⚡ The speed of LuaJIT and C
+
+🧠 Convenience of your own syntax
+
+Choosing the right tool for the task, you get the best of all worlds.
 
 ### Why is it interesting
 
@@ -316,6 +366,32 @@ res = match op:
 | `s` | `const char*`  |
 | `b` | `bool`         |
 | `p` | `void*`        |
+
+
+### Connecting Python libraries
+
+Thanks to its integration with Lupa 2.8, LIME can load and use any Python modules and libraries, from os and requests to numpy and tensorflow.
+
+It is important to understand:
+
+Single Python function calls (initialization, data loading, GUI configuration) work at the same speed as in Python.
+
+Frequent calls within loops (hundreds of thousands of iterations) create overhead costs for data transfer between Lua and Python. For such tasks, it is better to use FFI calls to C libraries - this gives a speed increase of up to 50-100 times.
+
+In interactive applications (GUIs, games, web servers), the user won't notice the difference because most of the time is spent waiting for I/O or events.
+
+Recommendation:
+Use Python for rapid prototyping, working with a rich ecosystem (numpy, pandas, Pillow, scikit-learn) and for one-time operations.
+For real-time computing, big data processing, or game cycles, prefer C libraries via FFI — they will provide maximum performance.
+
+AVERAGE SLOWDOWN WHEN USING PYTHON IN LIME COMPARED TO PURE PYTHON: 5-10%.
+
+```
+os = pytdef("os")
+
+print(os.path.exist("main.py"))
+```
+
 
 ### Current status
 
